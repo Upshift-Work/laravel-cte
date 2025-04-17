@@ -5,12 +5,9 @@ namespace Staudenmeir\LaravelCte\Connectors;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Connectors\ConnectionFactory as Base;
 use InvalidArgumentException;
-<<<<<<< HEAD
 use MStaack\LaravelPostgis\PostgisConnection;
-=======
 use Staudenmeir\LaravelCte\Connections\FirebirdConnection;
 use Staudenmeir\LaravelCte\Connections\MariaDbConnection;
->>>>>>> upstream-1.11.1
 use Staudenmeir\LaravelCte\Connections\MySqlConnection;
 use Staudenmeir\LaravelCte\Connections\PostgresConnection;
 use Staudenmeir\LaravelCte\Connections\SQLiteConnection;
