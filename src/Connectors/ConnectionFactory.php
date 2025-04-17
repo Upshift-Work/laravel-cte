@@ -5,10 +5,16 @@ namespace Staudenmeir\LaravelCte\Connectors;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Connectors\ConnectionFactory as Base;
 use InvalidArgumentException;
+<<<<<<< HEAD
 use MStaack\LaravelPostgis\PostgisConnection;
+=======
+use Staudenmeir\LaravelCte\Connections\FirebirdConnection;
+use Staudenmeir\LaravelCte\Connections\MariaDbConnection;
+>>>>>>> upstream-1.11.1
 use Staudenmeir\LaravelCte\Connections\MySqlConnection;
 use Staudenmeir\LaravelCte\Connections\PostgresConnection;
 use Staudenmeir\LaravelCte\Connections\SQLiteConnection;
+use Staudenmeir\LaravelCte\Connections\SingleStoreConnection;
 use Staudenmeir\LaravelCte\Connections\SqlServerConnection;
 
 class ConnectionFactory extends Base
@@ -27,21 +33,21 @@ class ConnectionFactory extends Base
      */
     protected function createConnection($driver, $connection, $database, $prefix = '', array $config = [])
     {
-        if ($resolver = Connection::getResolver($driver)) {
+        $resolver = Connection::getResolver($driver);
+
+        if (!in_array($driver, ['singlestore', 'firebird']) && $resolver) {
             return $resolver($connection, $database, $prefix, $config); // @codeCoverageIgnore
         }
 
-        switch ($driver) {
-            case 'mysql':
-                return new MySqlConnection($connection, $database, $prefix, $config);
-            case 'pgsql':
-                return new PostgisConnection($connection, $database, $prefix, $config);
-            case 'sqlite':
-                return new SQLiteConnection($connection, $database, $prefix, $config);
-            case 'sqlsrv':
-                return new SqlServerConnection($connection, $database, $prefix, $config);
-        }
-
-        throw new InvalidArgumentException("Unsupported driver [{$driver}]"); // @codeCoverageIgnore
+        return match ($driver) {
+            'mysql' => new MySqlConnection($connection, $database, $prefix, $config),
+            'mariadb' => new MariaDbConnection($connection, $database, $prefix, $config),
+            'pgsql' => new PostgisConnection($connection, $database, $prefix, $config);
+            'sqlite' => new SQLiteConnection($connection, $database, $prefix, $config),
+            'sqlsrv' => new SqlServerConnection($connection, $database, $prefix, $config),
+            'singlestore' => new SingleStoreConnection($connection, $database, $prefix, $config),
+            'firebird' => new FirebirdConnection($connection, $database, $prefix, $config),
+            default => throw new InvalidArgumentException("Unsupported driver [{$driver}]"),
+        };
     }
 }

@@ -3,7 +3,6 @@
 namespace Staudenmeir\LaravelCte\Tests;
 
 use DateTime;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Expression;
 use Staudenmeir\LaravelCte\Tests\Models\Post;
 use Staudenmeir\LaravelCte\Tests\Models\User;
@@ -12,32 +11,34 @@ class EloquentTest extends TestCase
 {
     public function testWithExpression()
     {
-        $users = User::withExpression('ids', 'select 1 union all select 2', ['id'])
-            ->whereIn('id', function (Builder $query) {
-                $query->from('ids');
-            })->get();
+        $users = User::withExpression('u', User::where('id', '>', 1))
+            ->from('u')
+            ->orderBy('id')
+            ->get();
 
-        $this->assertEquals([1, 2], $users->pluck('id')->all());
+        $this->assertEquals([2, 3], $users->pluck('id')->all());
     }
 
     public function testWithRecursiveExpression()
     {
-        $query = User::where('id', 3)
+        $query = User::select('id', 'parent_id', 'followers', 'created_at', 'updated_at')
+            ->where('id', 3)
             ->unionAll(
-                User::select('users.*')
+                User::select('users.id', 'users.parent_id', 'users.followers', 'users.created_at', 'users.updated_at')
                     ->join('ancestors', 'ancestors.parent_id', '=', 'users.id')
             );
 
         $users = User::from('ancestors')
-            ->withRecursiveExpression('ancestors', $query)
+            ->withRecursiveExpression('ancestors', $query, ['id', 'parent_id', 'followers', 'created_at', 'updated_at'])
+            ->orderBy('id')
             ->get();
 
-        $this->assertEquals([3, 2, 1], $users->pluck('id')->all());
+        $this->assertEquals([1, 2, 3], $users->pluck('id')->all());
     }
 
     public function testWithRecursiveExpressionAndCycleDetection()
     {
-        if (!in_array($this->database, ['mariadb', 'pgsql'])) {
+        if (!in_array($this->connection, ['mariadb', 'pgsql'])) {
             $this->markTestSkipped();
         }
 
@@ -53,11 +54,11 @@ class EloquentTest extends TestCase
                      ->withRecursiveExpressionAndCycleDetection('ancestors', $query, 'id', 'is_cycle', 'path')
                      ->get();
 
-        if ($this->database === 'mariadb') {
+        if ($this->connection === 'mariadb') {
             $this->assertEquals([3, 2, 1], $users->pluck('id')->all());
         }
 
-        if ($this->database === 'pgsql') {
+        if ($this->connection === 'pgsql') {
             $this->assertEquals([3, 2, 1, 3], $users->pluck('id')->all());
             $this->assertSame(false, $users[0]->is_cycle);
             $this->assertEquals('{(3)}', $users[0]->path);
@@ -78,15 +79,25 @@ class EloquentTest extends TestCase
 
     public function testInsertUsing()
     {
-        Post::withExpression('u', User::select('id')->where('id', '>', 1))
-          ->insertUsing(['user_id'], User::from('u'));
+        $id = match ($this->connection) {
+            'firebird' => '(select max("id") from "posts") + "id" as "id"',
+            default => '(select max(id) from posts) + id as id',
+        };
 
-        $this->assertEquals([1, 2, 2, 3], Post::pluck('user_id')->all());
+        $query = User::selectRaw($id)
+            ->addSelect('id as post_id')
+            ->selectRaw('1 as views')
+            ->where('id', '>', 1);
+
+        Post::withExpression('u', $query)
+          ->insertUsing(['id', 'user_id', 'views'], User::from('u'));
+
+        $this->assertEquals([1, 2, 2, 3], Post::orderBy('user_id')->pluck('user_id')->all());
     }
 
     public function testUpdate()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'oracle', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -101,7 +112,7 @@ class EloquentTest extends TestCase
 
     public function testUpdateWithJoin()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'oracle', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -116,7 +127,7 @@ class EloquentTest extends TestCase
 
     public function testUpdateWithLimit()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'oracle', 'singlestore', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -133,7 +144,7 @@ class EloquentTest extends TestCase
 
     public function testDelete()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'oracle', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -146,7 +157,7 @@ class EloquentTest extends TestCase
 
     public function testDeleteWithJoin()
     {
-        if ($this->database === 'mariadb') {
+        if (in_array($this->connection, ['mariadb', 'oracle', 'firebird'])) {
             $this->markTestSkipped();
         }
 
@@ -160,15 +171,20 @@ class EloquentTest extends TestCase
 
     public function testDeleteWithLimit()
     {
-        if (in_array($this->database, ['mariadb', 'sqlsrv'])) {
+        if (in_array($this->connection, ['mariadb', 'sqlsrv', 'oracle', 'firebird'])) {
             $this->markTestSkipped();
         }
 
-        Post::withExpression('u', User::where('id', '>', 0))
-          ->whereIn('user_id', User::from('u')->select('id'))
-          ->orderBy('id')
-          ->limit(1)
-          ->delete();
+        if ($this->connection === 'singlestore') {
+            $query = Post::withExpression('u', User::where('id', '<', 2));
+        } else {
+            $query = Post::withExpression('u', User::where('id', '>', 0))
+                         ->orderBy('id');
+        }
+
+        $query->whereIn('user_id', User::from('u')->select('id'))
+              ->limit(1)
+              ->delete();
 
         $this->assertEquals([2], Post::pluck('user_id')->all());
     }

@@ -1,11 +1,11 @@
-![CI](https://github.com/staudenmeir/laravel-cte/workflows/CI/badge.svg)
-[![Code Coverage](https://scrutinizer-ci.com/g/staudenmeir/laravel-cte/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/staudenmeir/laravel-cte/?branch=master)
+# Laravel CTE
+
+[![CI](https://github.com/staudenmeir/laravel-cte/actions/workflows/ci.yml/badge.svg)](https://github.com/staudenmeir/laravel-cte/actions/workflows/ci.yml)
+[![Code Coverage](https://codecov.io/gh/staudenmeir/laravel-cte/graph/badge.svg?token=JWHOOEYYGG)](https://codecov.io/gh/staudenmeir/laravel-cte)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/staudenmeir/laravel-cte/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/staudenmeir/laravel-cte/?branch=master)
 [![Latest Stable Version](https://poser.pugx.org/staudenmeir/laravel-cte/v/stable)](https://packagist.org/packages/staudenmeir/laravel-cte)
-[![Total Downloads](https://poser.pugx.org/staudenmeir/laravel-cte/downloads)](https://packagist.org/packages/staudenmeir/laravel-cte)
-[![License](https://poser.pugx.org/staudenmeir/laravel-cte/license)](https://packagist.org/packages/staudenmeir/laravel-cte)
-
-## Introduction
+[![Total Downloads](https://poser.pugx.org/staudenmeir/laravel-cte/downloads)](https://packagist.org/packages/staudenmeir/laravel-cte/stats)
+[![License](https://poser.pugx.org/staudenmeir/laravel-cte/license)](https://github.com/staudenmeir/laravel-cte/blob/master/LICENSE)
 
 This Laravel extension adds support for common table expressions (CTE) to the query builder and Eloquent.
 
@@ -18,6 +18,9 @@ Supports Laravel 5.5+.
 - PostgreSQL 9.4+
 - SQLite 3.8.3+
 - SQL Server 2008+
+- Oracle 9.2+
+- SingleStore 8.1+
+- Firebird
 
 ## Installation
 
@@ -26,6 +29,19 @@ Supports Laravel 5.5+.
 Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 
     composer require staudenmeir/laravel-cte:"^^^^1.0"
+
+## Versions
+
+| Laravel | Package |
+|:--------|:--------|
+| 11.x    | 1.11    |
+| 10.x    | 1.9     |
+| 9.x     | 1.6     |
+| 8.x     | 1.5     |
+| 7.x     | 1.4     |
+| 6.x     | 1.2     |
+| 5.8     | 1.1     |
+| 5.5–5.7 | 1.0     |
 
 ## Usage
 
@@ -37,7 +53,6 @@ Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 - [INSERT/UPDATE/DELETE Queries](#insertupdatedelete-queries)
 - [Eloquent](#eloquent)
     - [Recursive Relationships](#recursive-relationships)
-- [Package Conflicts](#package-conflicts)
 - [Lumen](#lumen)
 
 ### SELECT Queries
@@ -133,7 +148,7 @@ $tree = DB::table('tree')
 
 ### INSERT/UPDATE/DELETE Queries
 
-You can use common table expressions in `INSERT`(Laravel 5.7.17+), `UPDATE` and `DELETE` queries:
+You can use common table expressions in `INSERT`, `UPDATE` and `DELETE` queries:
 
 ```php
 DB::table('profiles')
@@ -182,12 +197,6 @@ $tree = User::from('tree')
 
 If you want to implement recursive relationships, you can use this
 package: [staudenmeir/laravel-adjacency-list](https://github.com/staudenmeir/laravel-adjacency-list)
-
-### Package Conflicts
-
-- `staudenmeir/eloquent-eager-limit`: Replace both packages
-  with [staudenmeir/eloquent-eager-limit-x-laravel-cte](https://github.com/staudenmeir/eloquent-eager-limit-x-laravel-cte)
-  to use them on the same model.
 
 ### Lumen
 

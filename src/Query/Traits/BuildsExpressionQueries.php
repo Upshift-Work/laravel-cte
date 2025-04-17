@@ -6,8 +6,12 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Grammars\Grammar;
 use Illuminate\Database\Query\Processors\Processor;
 use RuntimeException;
+use Staudenmeir\LaravelCte\Query\Grammars\FirebirdGrammar;
+use Staudenmeir\LaravelCte\Query\Grammars\MariaDbGrammar;
 use Staudenmeir\LaravelCte\Query\Grammars\MySqlGrammar;
+use Staudenmeir\LaravelCte\Query\Grammars\OracleGrammar;
 use Staudenmeir\LaravelCte\Query\Grammars\PostgresGrammar;
+use Staudenmeir\LaravelCte\Query\Grammars\SingleStoreGrammar;
 use Staudenmeir\LaravelCte\Query\Grammars\SQLiteGrammar;
 use Staudenmeir\LaravelCte\Query\Grammars\SqlServerGrammar;
 
@@ -69,18 +73,19 @@ trait BuildsExpressionQueries
     {
         $driver = $connection->getDriverName();
 
-        switch ($driver) {
-            case 'mysql':
-                return new MySqlGrammar();
-            case 'pgsql':
-                return new PostgresGrammar();
-            case 'sqlite':
-                return new SQLiteGrammar();
-            case 'sqlsrv':
-                return new SqlServerGrammar();
-        }
+        $grammar = match ($driver) {
+            'mysql' => new MySqlGrammar(),
+            'mariadb' => new MariaDbGrammar(),
+            'pgsql' => new PostgresGrammar(),
+            'sqlite' => new SQLiteGrammar(),
+            'sqlsrv' => new SqlServerGrammar(),
+            'oracle' => new OracleGrammar(),
+            'singlestore' => new SingleStoreGrammar(),
+            'firebird' => new FirebirdGrammar(),
+            default => throw new RuntimeException('This database is not supported.'), // @codeCoverageIgnore
+        };
 
-        throw new RuntimeException('This database is not supported.'); // @codeCoverageIgnore
+        return $grammar->setConnection($connection);
     }
 
     /**

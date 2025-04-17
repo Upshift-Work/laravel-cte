@@ -2,49 +2,69 @@
 
 namespace Staudenmeir\LaravelCte\Tests;
 
+use HarryGulliford\Firebird\FirebirdServiceProvider;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Base;
 use Staudenmeir\LaravelCte\Tests\Models\Post;
 use Staudenmeir\LaravelCte\Tests\Models\User;
+use SingleStore\Laravel\SingleStoreProvider;
+use Yajra\Oci8\Oci8ServiceProvider;
 
 abstract class TestCase extends Base
 {
-    protected string $database;
+    protected string $connection;
 
     protected function setUp(): void
     {
-        $this->database = getenv('DATABASE') ?: 'sqlite';
+        $this->connection = getenv('DB_CONNECTION') ?: 'sqlite';
 
         parent::setUp();
 
-        Schema::dropAllTables();
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('posts');
 
         Schema::create('users', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('parent_id')->nullable();
+            $table->unsignedBigInteger('id')->unique();
+            $table->unsignedBigInteger('parent_id')->nullable();
             $table->unsignedBigInteger('followers');
             $table->timestamps();
+
+            if ($this->connection === 'singlestore') {
+                $table->shardKey('id');
+            }
         });
 
         Schema::create('posts', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('user_id');
-            $table->unsignedBigInteger('views')->default(0);
+            $table->unsignedBigInteger('id')->unique();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('views');
             $table->timestamps();
+
+            if ($this->connection === 'singlestore') {
+                $table->shardKey('id');
+            }
         });
 
         Model::unguard();
 
-        User::create(['parent_id' => null, 'followers' => 10]);
-        User::create(['parent_id' => 1, 'followers' => 20]);
-        User::create(['parent_id' => 2, 'followers' => 30]);
+        User::create(['id' => 1, 'parent_id' => null, 'followers' => 10]);
+        User::create(['id' => 2, 'parent_id' => 1, 'followers' => 20]);
+        User::create(['id' => 3, 'parent_id' => 2, 'followers' => 30]);
 
-        Post::create(['user_id' => 1]);
-        Post::create(['user_id' => 2]);
+        Post::create(['id' => 11, 'user_id' => 1, 'views' => 0]);
+        Post::create(['id' => 12, 'user_id' => 2, 'views' => 0]);
 
         Model::reguard();
+    }
+
+    protected function tearDown(): void
+    {
+        DB::connection()->disconnect();
+
+        parent::tearDown();
     }
 
     protected function getEnvironmentSetUp($app)
@@ -53,6 +73,12 @@ abstract class TestCase extends Base
 
         $app['config']->set('database.default', 'testing');
 
-        $app['config']->set('database.connections.testing', $config[$this->database]);
+        $app['config']->set('database.connections.testing', $config[$this->connection]);
+    }
+
+    protected function getPackageProviders($app)
+    {
+        return [Oci8ServiceProvider::class, SingleStoreProvider::class]; // TODO[L11]
+        return [Oci8ServiceProvider::class, SingleStoreProvider::class, FirebirdServiceProvider::class];
     }
 }
